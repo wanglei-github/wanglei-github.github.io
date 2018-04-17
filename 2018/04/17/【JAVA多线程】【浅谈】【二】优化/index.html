@@ -1,0 +1,155 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+  <meta charset="utf-8">
+  
+  <title>【浅谈】【JAVA多线程】【二】锁优化 | Code Work Life | 思考很重要，行动更重要</title>
+
+  
+  <meta name="author" content="wanglei">
+  
+
+  
+  <meta name="description" content="锁的性能优化JAVA在高效并发的道路上，一直挺身而进，不断优化升级，这也是为什么多数服务使用java语言的原因之一。
+
+自旋锁
+
+为什么会有自旋锁呢?我们知道，当线程遇到在竞争锁时，若未获取锁，则会被挂起。其他线程放弃锁后，又会被再次唤醒。而这一挂一醒都是需要转入内核状态中完成。
+而大多数的应用，在">
+  
+
+  
+  
+  <meta name="keywords" content="java,多线程,自旋锁">
+  
+
+  <meta id="viewport" name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no, minimal-ui">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+
+  <meta property="og:title" content="【浅谈】【JAVA多线程】【二】锁优化"/>
+
+  <meta property="og:site_name" content="Code Work Life"/>
+
+  
+  <meta property="og:image" content="/favicon.ico"/>
+  
+
+  <link href="/favicon.png" rel="icon">
+  <link rel="alternate" href="/atom.xml" title="Code Work Life" type="application/atom+xml">
+  <link rel="stylesheet" href="/css/style.css" media="screen" type="text/css">
+</head>
+
+
+<body>
+<div class="blog">
+  <div class="content">
+
+    <header>
+  <div class="site-branding">
+    <h1 class="site-title">
+      <a href="/">Code Work Life</a>
+    </h1>
+    <p class="site-description">思考很重要，行动更重要</p>
+  </div>
+  <nav class="site-navigation">
+    <ul>
+      
+        <li><a href="/">主页</a></li>
+      
+        <li><a href="/archives">归档</a></li>
+      
+        <li><a href="/about">关于</a></li>
+      
+    </ul>
+  </nav>
+</header>
+
+    <main class="site-main posts-loop">
+    <article>
+
+  
+    
+    <h3 class="article-title"><span>【浅谈】【JAVA多线程】【二】锁优化</span></h3>
+    
+  
+
+  <div class="article-top-meta">
+    <span class="posted-on">
+      <a href="/2018/04/17/【JAVA多线程】【浅谈】【二】优化/" rel="bookmark">
+        <time class="entry-date published" datetime="2018-04-17T13:38:27.000Z">
+          2018-04-17
+        </time>
+      </a>
+    </span>
+  </div>
+
+
+  
+
+  <div class="article-content">
+    <div class="entry">
+      
+        <h1 id="锁的性能优化"><a href="#锁的性能优化" class="headerlink" title="锁的性能优化"></a>锁的性能优化</h1><p>JAVA在高效并发的道路上，一直挺身而进，不断优化升级，这也是为什么多数服务使用java语言的原因之一。</p>
+<blockquote>
+<p>自旋锁</p>
+</blockquote>
+<p>为什么会有自旋锁呢?<br>我们知道，当线程遇到在竞争锁时，若未获取锁，则会被挂起。其他线程放弃锁后，又会被再次唤醒。而这一挂一醒都是需要转入内核状态中完成。</p>
+<p>而大多数的应用，在竞争锁时，时间都会很短。为了优化这种性能，就出现了这种 <strong>自旋锁</strong>。顾名思义，自旋的意思是，让一个线程在竞争不到锁时，去执行一个 忙循环（可简单理解为一个<code>while(true){}</code>操作）。</p>
+<p><strong>自旋锁</strong>在 JDK1.4.2中就已经引入了，默认为关闭状态。<code>-XX:+UseSpinning</code>参数来开启。在JDK1.6中，默认开启。<br>自旋意义在于避免了线程的状态的变更，但是，它并未放弃CPU时间。如果锁的占用时间很短，那么，这种自旋的效果就会很不错。否则，就会白白浪费CPU时间。当然，自旋也不会一直下去。通过设置<code>-XX:PreBlockSpin</code>参数来控制自旋次数，默认为10次。</p>
+<p>在JDK1.6中还引入了自适应的自旋锁。JVM开始变得更加聪明，它会根据上一次锁的状态，来更改这次的自旋状态。若自旋等待刚刚获取锁成功，则下一次时，JVM会认为也这次可以自旋获得。若自旋很少成功过，那么JVM也许会放弃自旋这种状态，直接将线程挂起。</p>
+
+      
+    </div>
+
+  </div>
+
+  <div class="article-footer">
+    <div class="article-meta pull-left">
+
+    
+
+    
+    
+
+    <span class="post-tags">
+      <i class="icon-tags"></i>
+        <a href="/tags/java/">java</a><a href="/tags/多线程/">多线程</a><a href="/tags/自旋锁/">自旋锁</a>
+    </span>
+    
+
+    </div>
+
+    
+  </div>
+</article>
+
+
+    </main>
+
+    <footer class="site-footer">
+  <p class="site-info">
+    Proudly powered by <a href="https://hexo.io/" target="_blank">Hexo</a> and
+    Theme by <a href="https://github.com/CodeDaraW/Hacker" target="_blank">Hacker</a>
+    </br>
+    
+    &copy; 2018 wanglei
+    
+  </p>
+</footer>
+    
+<script>
+    (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+                (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+            m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+    })(window,document,'script','//www.google-analytics.com/analytics.js','ga');
+
+    ga('create', 'UA-83609983-2', 'auto');
+    ga('send', 'pageview');
+
+</script>
+
+  </div>
+</div>
+</body>
+</html>
