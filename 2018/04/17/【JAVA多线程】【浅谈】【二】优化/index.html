@@ -20,7 +20,7 @@
 
   
   
-  <meta name="keywords" content="java,多线程,自旋锁">
+  <meta name="keywords" content="多线程,java,自旋锁">
   
 
   <meta id="viewport" name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no, minimal-ui">
@@ -98,6 +98,7 @@
 <p>而大多数的应用，在竞争锁时，时间都会很短。为了优化这种性能，就出现了这种 <strong>自旋锁</strong>。顾名思义，自旋的意思是，让一个线程在竞争不到锁时，去执行一个 忙循环（可简单理解为一个<code>while(true){}</code>操作）。</p>
 <p><strong>自旋锁</strong>在 JDK1.4.2中就已经引入了，默认为关闭状态。<code>-XX:+UseSpinning</code>参数来开启。在JDK1.6中，默认开启。<br>自旋意义在于避免了线程的状态的变更，但是，它并未放弃CPU时间。如果锁的占用时间很短，那么，这种自旋的效果就会很不错。否则，就会白白浪费CPU时间。当然，自旋也不会一直下去。通过设置<code>-XX:PreBlockSpin</code>参数来控制自旋次数，默认为10次。</p>
 <p>在JDK1.6中还引入了自适应的自旋锁。JVM开始变得更加聪明，它会根据上一次锁的状态，来更改这次的自旋状态。若自旋等待刚刚获取锁成功，则下一次时，JVM会认为也这次可以自旋获得。若自旋很少成功过，那么JVM也许会放弃自旋这种状态，直接将线程挂起。</p>
+<p>—- 参考<a href="http://item.jd.com/11252778.html" target="_blank" rel="noopener">《深入理解java虚拟机》</a></p>
 
       
     </div>
@@ -114,7 +115,7 @@
 
     <span class="post-tags">
       <i class="icon-tags"></i>
-        <a href="/tags/java/">java</a><a href="/tags/多线程/">多线程</a><a href="/tags/自旋锁/">自旋锁</a>
+        <a href="/tags/多线程/">多线程</a><a href="/tags/java/">java</a><a href="/tags/自旋锁/">自旋锁</a>
     </span>
     
 
