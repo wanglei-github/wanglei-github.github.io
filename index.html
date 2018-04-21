@@ -132,6 +132,7 @@
 </table>
 <p>简单来说，当线程A去进入同步代码块时，若此时同步对象并没有被锁住（01），那么该线程就可以进入同步块，同时修改修改同步对象的Mark Word，若此时偏向锁可用，则使用偏向锁，若此时线程B也进行获取锁，那么偏向锁就会消除，锁膨胀为轻量级锁，并修改Mark Word，将标示为修改为00,若还有线程C来进行获取锁，那么锁将进一步膨胀，变为重度锁（10）</p>
 <p>不论是轻量级锁还是偏向锁，都是根据具体场景而提出的优化，若同步块的竞争较为激烈，那么轻量级锁或者偏向锁反而会降低性能（多出了一步CAS操作）。有时可以通过 <code>-XX: -UseBiasedLocking</code>来关闭偏向锁（在JDK1.6    默认是开启的）。</p>
+<h2 id="参考"><a href="#参考" class="headerlink" title="参考"></a>参考</h2><p><a href="http://item.jd.com/11252778.html" target="_blank" rel="noopener">《深入理解java虚拟机》</a></p>
 
       
     </div>
@@ -164,7 +165,7 @@
 
   
     
-    <h3 class="article-title"><a href="/2018/04/17/【浅谈】【JAVA多线程】【二】优化/"><span>【浅谈】【JAVA多线程】【二】锁优化</span></a></h3>
+    <h3 class="article-title"><a href="/2018/04/17/【浅谈】【JAVA多线程】【二】优化/"><span>【浅谈】【JAVA多线程】【二】自旋锁</span></a></h3>
     
   
 
@@ -184,7 +185,7 @@
   <div class="article-content">
     <div class="entry">
       
-        <h1 id="锁的性能优化"><a href="#锁的性能优化" class="headerlink" title="锁的性能优化"></a>锁的性能优化</h1><p>JAVA在高效并发的道路上，一直挺身而进，不断优化升级，这也是为什么多数服务使用java语言的原因之一。</p>
+        <h2 id="锁的性能优化"><a href="#锁的性能优化" class="headerlink" title="锁的性能优化"></a>锁的性能优化</h2><p>JAVA在高效并发的道路上，一直挺身而进，不断优化升级，这也是为什么多数服务使用java语言的原因之一。</p>
 <blockquote>
 <p>自旋锁</p>
 </blockquote>
@@ -192,7 +193,7 @@
 <p>而大多数的应用，在竞争锁时，时间都会很短。为了优化这种性能，就出现了这种 <strong>自旋锁</strong>。顾名思义，自旋的意思是，让一个线程在竞争不到锁时，去执行一个 忙循环（可简单理解为一个<code>while(true){}</code>操作）。</p>
 <p><strong>自旋锁</strong>在 JDK1.4.2中就已经引入了，默认为关闭状态。<code>-XX:+UseSpinning</code>参数来开启。在JDK1.6中，默认开启。<br>自旋意义在于避免了线程的状态的变更，但是，它并未放弃CPU时间。如果锁的占用时间很短，那么，这种自旋的效果就会很不错。否则，就会白白浪费CPU时间。当然，自旋也不会一直下去。通过设置<code>-XX:PreBlockSpin</code>参数来控制自旋次数，默认为10次。</p>
 <p>在JDK1.6中还引入了自适应的自旋锁。JVM开始变得更加聪明，它会根据上一次锁的状态，来更改这次的自旋状态。若自旋等待刚刚获取锁成功，则下一次时，JVM会认为也这次可以自旋获得。若自旋很少成功过，那么JVM也许会放弃自旋这种状态，直接将线程挂起。</p>
-<p>—- 参考<a href="http://item.jd.com/11252778.html" target="_blank" rel="noopener">《深入理解java虚拟机》</a></p>
+<h2 id="参考"><a href="#参考" class="headerlink" title="参考"></a>参考</h2><p><a href="http://item.jd.com/11252778.html" target="_blank" rel="noopener">《深入理解java虚拟机》</a></p>
 
       
     </div>
