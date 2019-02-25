@@ -1,0 +1,165 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+  <meta charset="utf-8">
+  
+  <title>关于mysql表情符号存储简析 | Code Work Life | 思考很重要，行动更重要</title>
+
+  
+  <meta name="author" content="wanglei">
+  
+
+  
+  <meta name="description" content="关键点的分析关于mysql存储表情符号的教程，网上一大堆。但根据一些教程设置后，还是会出现乱码的现象。根本的原因在于，没有了解整个存储过程。
+解决表情符号问题要从以下几点关注：
+
+clinet端
+connection链接（也可以理解为运输部分）
+table存储
+query查询（也可以理解为resul">
+  
+
+  
+  
+  <meta name="keywords" content="mysql,表情符号,emoji,编码问题">
+  
+
+  <meta id="viewport" name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no, minimal-ui">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+
+  <meta property="og:title" content="关于mysql表情符号存储简析"/>
+
+  <meta property="og:site_name" content="Code Work Life"/>
+
+  
+  <meta property="og:image" content="/favicon.ico"/>
+  
+
+  <link href="/favicon.png" rel="icon">
+  <link rel="alternate" href="/atom.xml" title="Code Work Life" type="application/atom+xml">
+  <link rel="stylesheet" href="/css/style.css" media="screen" type="text/css">
+</head>
+
+
+<body>
+<div class="blog">
+  <div class="content">
+
+    <header>
+  <div class="site-branding">
+    <h1 class="site-title">
+      <a href="/">Code Work Life</a>
+    </h1>
+    <p class="site-description">思考很重要，行动更重要</p>
+  </div>
+  <nav class="site-navigation">
+    <ul>
+      
+        <li><a href="/">主页</a></li>
+      
+        <li><a href="/archives">归档</a></li>
+      
+        <li><a href="/about">关于</a></li>
+      
+    </ul>
+  </nav>
+</header>
+
+    <main class="site-main posts-loop">
+    <article>
+
+  
+    
+    <h3 class="article-title"><span>关于mysql表情符号存储简析</span></h3>
+    
+  
+
+  <div class="article-top-meta">
+    <span class="posted-on">
+      <a href="/2018/11/20/关于mysql表情符号存储简析/" rel="bookmark">
+        <time class="entry-date published" datetime="2018-11-20T08:28:47.000Z">
+          2018-11-20
+        </time>
+      </a>
+    </span>
+  </div>
+
+
+  
+
+  <div class="article-content">
+    <div class="entry">
+      
+        <h2 id="关键点的分析"><a href="#关键点的分析" class="headerlink" title="关键点的分析"></a>关键点的分析</h2><p>关于mysql存储表情符号的教程，网上一大堆。但根据一些教程设置后，还是会出现乱码的现象。根本的原因在于，没有了解整个存储过程。</p>
+<p>解决表情符号问题要从以下几点关注：</p>
+<ul>
+<li>clinet端</li>
+<li>connection链接（也可以理解为运输部分）</li>
+<li>table存储</li>
+<li>query查询（也可以理解为result结果）</li>
+</ul>
+<p>简言之，首先你和msyql进行交互时，你的client端首先需要编码正确，然后你将编码正确的数据必须在能够运输正确的轨道上运输（connection）,最后要能把数据放在能够正确存储编码的表里。至此已经完了存储。接下来实际时读取，也是query过程，这个过程也要保证connection正确，然后就是返回的结果数据也要正确编码。</p>
+<p>因此我在项目只设置了两项。</p>
+<ol>
+<li>table表属性为 uft8mb4</li>
+<li><a href="https://dev.mysql.com/doc/refman/8.0/en/charset-connection.html" target="_blank" rel="noopener">set names utf8mb4</a> </li>
+</ol>
+<p>第二项等同于 <strong><em>character_set_client</em></strong>, <strong><em>character_set_results</em></strong>, <strong><em>character_set_connection</em></strong> 设置了这三项的值。</p>
+<p>还有注意一点，就是mysql的一些属性的作用域只在当前会话中。因此，在实际使用过程中，需要在每次获取链接时，进行设置。有些三方的数据库链接池是有connectionInitSqls等属性支持的。</p>
+<p>其实，任意编码问题都可以从这个方向进行梳理，数据元格式必须正确，传输过程必须支持，存储需要支持，读取也要按正确的编码进行读取。</p>
+
+      
+    </div>
+
+  </div>
+
+  <div class="article-footer">
+    <div class="article-meta pull-left">
+
+    
+
+    
+    
+
+    <span class="post-tags">
+      <i class="icon-tags"></i>
+        <a href="/tags/mysql/">mysql</a><a href="/tags/表情符号/">表情符号</a><a href="/tags/emoji/">emoji</a><a href="/tags/编码问题/">编码问题</a>
+    </span>
+    
+
+    </div>
+
+    
+  </div>
+</article>
+
+
+    </main>
+
+    <footer class="site-footer">
+  <p class="site-info">
+    Proudly powered by <a href="https://hexo.io/" target="_blank">Hexo</a> and
+    Theme by <a href="https://github.com/CodeDaraW/Hacker" target="_blank">Hacker</a>
+    </br>
+    
+    &copy; 2019 wanglei
+    
+  </p>
+</footer>
+    
+<script>
+    (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+                (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+            m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+    })(window,document,'script','//www.google-analytics.com/analytics.js','ga');
+
+    ga('create', 'UA-83609983-2', 'auto');
+    ga('send', 'pageview');
+
+</script>
+
+  </div>
+</div>
+</body>
+</html>

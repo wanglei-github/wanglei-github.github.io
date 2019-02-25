@@ -1,0 +1,150 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+  <meta charset="utf-8">
+  
+  <title>HttpClient针对IPV6的支持 | Code Work Life | 思考很重要，行动更重要</title>
+
+  
+  <meta name="author" content="wanglei">
+  
+
+  
+  <meta name="description" content="ipv6会逐渐代替ipv4协议，对于一些插件使用，若不及时更新版本，会有意想不到的问题。比如java中常用的httplcient组件。
+HttpClient 版本不能低于4.3.6原因：在4.3.6中，httpclient新增了对于异常NoRouteToHostException的处理,低于4.3.">
+  
+
+  
+  
+  <meta name="keywords" content="ipv6,httpclient">
+  
+
+  <meta id="viewport" name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no, minimal-ui">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+
+  <meta property="og:title" content="HttpClient针对IPV6的支持"/>
+
+  <meta property="og:site_name" content="Code Work Life"/>
+
+  
+  <meta property="og:image" content="/favicon.ico"/>
+  
+
+  <link href="/favicon.png" rel="icon">
+  <link rel="alternate" href="/atom.xml" title="Code Work Life" type="application/atom+xml">
+  <link rel="stylesheet" href="/css/style.css" media="screen" type="text/css">
+</head>
+
+
+<body>
+<div class="blog">
+  <div class="content">
+
+    <header>
+  <div class="site-branding">
+    <h1 class="site-title">
+      <a href="/">Code Work Life</a>
+    </h1>
+    <p class="site-description">思考很重要，行动更重要</p>
+  </div>
+  <nav class="site-navigation">
+    <ul>
+      
+        <li><a href="/">主页</a></li>
+      
+        <li><a href="/archives">归档</a></li>
+      
+        <li><a href="/about">关于</a></li>
+      
+    </ul>
+  </nav>
+</header>
+
+    <main class="site-main posts-loop">
+    <article>
+
+  
+    
+    <h3 class="article-title"><span>HttpClient针对IPV6的支持</span></h3>
+    
+  
+
+  <div class="article-top-meta">
+    <span class="posted-on">
+      <a href="/2018/08/30/HttpClient针对IPV6的支持/" rel="bookmark">
+        <time class="entry-date published" datetime="2018-08-30T10:13:37.000Z">
+          2018-08-30
+        </time>
+      </a>
+    </span>
+  </div>
+
+
+  
+
+  <div class="article-content">
+    <div class="entry">
+      
+        <p>ipv6会逐渐代替ipv4协议，对于一些插件使用，若不及时更新版本，会有意想不到的问题。比如java中常用的httplcient组件。</p>
+<h2 id="HttpClient-版本不能低于4-3-6"><a href="#HttpClient-版本不能低于4-3-6" class="headerlink" title="HttpClient 版本不能低于4.3.6"></a>HttpClient 版本不能低于4.3.6</h2><p><strong>原因</strong>：在4.3.6中，httpclient新增了对于异常NoRouteToHostException的处理,低于4.3.6的httpclient会忽视这个异常，导致链接失败。</p>
+<h2 id="NoRouteToHostException的异常处理"><a href="#NoRouteToHostException的异常处理" class="headerlink" title="NoRouteToHostException的异常处理"></a>NoRouteToHostException的异常处理</h2><h3 id="源码4-3-6"><a href="#源码4-3-6" class="headerlink" title="源码4.3.6"></a>源码4.3.6</h3><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br></pre></td><td class="code"><pre><span class="line">class HttpClientConnectionOperator &#123;</span><br><span class="line">    ...省略其他代码</span><br><span class="line">   //关注此方法的异常处理</span><br><span class="line">	public void connect(ManagedHttpClientConnection conn, HttpHost host, InetSocketAddress localAddress, int connectTimeout, SocketConfig socketConfig, HttpContext context) throws IOException &#123;</span><br><span class="line">        Lookup&lt;ConnectionSocketFactory&gt; registry = this.getSocketFactoryRegistry(context);</span><br><span class="line">        ConnectionSocketFactory sf = (ConnectionSocketFactory)registry.lookup(host.getSchemeName());</span><br><span class="line">        if (sf == null) &#123;</span><br><span class="line">            throw new UnsupportedSchemeException(host.getSchemeName() + &quot; protocol is not supported&quot;);</span><br><span class="line">        &#125; else &#123;</span><br><span class="line">        	  若host包含ipv4和ipv6，则addresses会包含2个</span><br><span class="line">            InetAddress[] addresses = host.getAddress() != null ? new InetAddress[]&#123;host.getAddress()&#125; : this.dnsResolver.resolve(host.getHostName());</span><br><span class="line">            int port = this.schemePortResolver.resolve(host);</span><br><span class="line"></span><br><span class="line">            for(int i = 0; i &lt; addresses.length; ++i) &#123;</span><br><span class="line">                InetAddress address = addresses[i];</span><br><span class="line">                boolean last = i == addresses.length - 1;</span><br><span class="line">                Socket sock = sf.createSocket(context);</span><br><span class="line">                sock.setSoTimeout(socketConfig.getSoTimeout());</span><br><span class="line">                sock.setReuseAddress(socketConfig.isSoReuseAddress());</span><br><span class="line">                sock.setTcpNoDelay(socketConfig.isTcpNoDelay());</span><br><span class="line">                sock.setKeepAlive(socketConfig.isSoKeepAlive());</span><br><span class="line">                int linger = socketConfig.getSoLinger();</span><br><span class="line">                if (linger &gt;= 0) &#123;</span><br><span class="line">                    sock.setSoLinger(linger &gt; 0, linger);</span><br><span class="line">                &#125;</span><br><span class="line"></span><br><span class="line">                conn.bind(sock);</span><br><span class="line">                InetSocketAddress remoteAddress = new InetSocketAddress(address, port);</span><br><span class="line">                if (this.log.isDebugEnabled()) &#123;</span><br><span class="line">                    this.log.debug(&quot;Connecting to &quot; + remoteAddress);</span><br><span class="line">                &#125;</span><br><span class="line"></span><br><span class="line">                try &#123;</span><br><span class="line">                    sock = sf.connectSocket(connectTimeout, sock, host, remoteAddress, localAddress, context);</span><br><span class="line">                    conn.bind(sock);</span><br><span class="line">                    if (this.log.isDebugEnabled()) &#123;</span><br><span class="line">                        this.log.debug(&quot;Connection established &quot; + conn);</span><br><span class="line">                    &#125;</span><br><span class="line"></span><br><span class="line">                    return;</span><br><span class="line">                &#125; catch (SocketTimeoutException var19) &#123;</span><br><span class="line">                    if (last) &#123;</span><br><span class="line">                        throw new ConnectTimeoutException(var19, host, addresses);</span><br><span class="line">                    &#125;</span><br><span class="line">                &#125; catch (ConnectException var20) &#123;</span><br><span class="line">                    if (last) &#123;</span><br><span class="line">                        String msg = var20.getMessage();</span><br><span class="line">                        if (&quot;Connection timed out&quot;.equals(msg)) &#123;</span><br><span class="line">                            throw new ConnectTimeoutException(var20, host, addresses);</span><br><span class="line">                        &#125;</span><br><span class="line"></span><br><span class="line">                        throw new HttpHostConnectException(var20, host, addresses);</span><br><span class="line">                    &#125;</span><br><span class="line">                    //此处新增了对于NoRouteToHostException的处理，若访问的host同时拥有ipv4和ipv6，但链接不支持ipv6，会抛出此异常。若不加以处理，则直接会直接报错，退出。</span><br><span class="line">                &#125; catch (NoRouteToHostException var21) &#123;</span><br><span class="line">                    if (last) &#123;</span><br><span class="line">                        throw var21;</span><br><span class="line">                    &#125;</span><br><span class="line">                &#125;</span><br><span class="line"></span><br><span class="line">                if (this.log.isDebugEnabled()) &#123;</span><br><span class="line">                    this.log.debug(&quot;Connect to &quot; + remoteAddress + &quot; timed out. &quot; + &quot;Connection will be retried using another IP address&quot;);</span><br><span class="line">                &#125;</span><br><span class="line">            &#125;</span><br><span class="line"></span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<h3 id="源码4-3-5"><a href="#源码4-3-5" class="headerlink" title="源码4.3.5"></a>源码4.3.5</h3><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br></pre></td><td class="code"><pre><span class="line">class HttpClientConnectionOperator &#123;</span><br><span class="line">  ...省略其他代码</span><br><span class="line">  public void connect(</span><br><span class="line">            final ManagedHttpClientConnection conn,</span><br><span class="line">            final HttpHost host,</span><br><span class="line">            final InetSocketAddress localAddress,</span><br><span class="line">            final int connectTimeout,</span><br><span class="line">            final SocketConfig socketConfig,</span><br><span class="line">            final HttpContext context) throws IOException &#123;</span><br><span class="line">        final Lookup&lt;ConnectionSocketFactory&gt; registry = getSocketFactoryRegistry(context);</span><br><span class="line">        final ConnectionSocketFactory sf = registry.lookup(host.getSchemeName());</span><br><span class="line">        if (sf == null) &#123;</span><br><span class="line">            throw new UnsupportedSchemeException(host.getSchemeName() +</span><br><span class="line">                    &quot; protocol is not supported&quot;);</span><br><span class="line">        &#125;</span><br><span class="line">         //若host包含ipv4和ipv6，则addresses会包含2个</span><br><span class="line">        final InetAddress[] addresses = this.dnsResolver.resolve(host.getHostName());</span><br><span class="line">        final int port = this.schemePortResolver.resolve(host);</span><br><span class="line">        for (int i = 0; i &lt; addresses.length; i++) &#123;</span><br><span class="line">            final InetAddress address = addresses[i];</span><br><span class="line">            final boolean last = i == addresses.length - 1;</span><br><span class="line"></span><br><span class="line">            Socket sock = sf.createSocket(context);</span><br><span class="line">            sock.setSoTimeout(socketConfig.getSoTimeout());</span><br><span class="line">            sock.setReuseAddress(socketConfig.isSoReuseAddress());</span><br><span class="line">            sock.setTcpNoDelay(socketConfig.isTcpNoDelay());</span><br><span class="line">            sock.setKeepAlive(socketConfig.isSoKeepAlive());</span><br><span class="line">            final int linger = socketConfig.getSoLinger();</span><br><span class="line">            if (linger &gt;= 0) &#123;</span><br><span class="line">                sock.setSoLinger(linger &gt; 0, linger);</span><br><span class="line">            &#125;</span><br><span class="line">            conn.bind(sock);</span><br><span class="line"></span><br><span class="line">            final InetSocketAddress remoteAddress = new InetSocketAddress(address, port);</span><br><span class="line">            if (this.log.isDebugEnabled()) &#123;</span><br><span class="line">                this.log.debug(&quot;Connecting to &quot; + remoteAddress);</span><br><span class="line">            &#125;</span><br><span class="line">            try &#123;</span><br><span class="line">                sock = sf.connectSocket(</span><br><span class="line">                        connectTimeout, sock, host, remoteAddress, localAddress, context);</span><br><span class="line">                conn.bind(sock);</span><br><span class="line">                if (this.log.isDebugEnabled()) &#123;</span><br><span class="line">                    this.log.debug(&quot;Connection established &quot; + conn);</span><br><span class="line">                &#125;</span><br><span class="line">                return;</span><br><span class="line">            &#125; catch (final SocketTimeoutException ex) &#123;</span><br><span class="line">                if (last) &#123;</span><br><span class="line">                    throw new ConnectTimeoutException(ex, host, addresses);</span><br><span class="line">                &#125;</span><br><span class="line">            //相对于源码4.3.6 这里缺少了对于 NoRouteToHostException 异常处理，导致链接失败。</span><br><span class="line">            &#125; catch (final ConnectException ex) &#123;</span><br><span class="line">                if (last) &#123;</span><br><span class="line">                    final String msg = ex.getMessage();</span><br><span class="line">                    if (&quot;Connection timed out&quot;.equals(msg)) &#123;</span><br><span class="line">                        throw new ConnectTimeoutException(ex, host, addresses);</span><br><span class="line">                    &#125; else &#123;</span><br><span class="line">                        throw new HttpHostConnectException(ex, host, addresses);</span><br><span class="line">                    &#125;</span><br><span class="line">                &#125;</span><br><span class="line">            &#125;</span><br><span class="line">            if (this.log.isDebugEnabled()) &#123;</span><br><span class="line">                this.log.debug(&quot;Connect to &quot; + remoteAddress + &quot; timed out. &quot; +</span><br><span class="line">                        &quot;Connection will be retried using another IP address&quot;);</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p><strong><em>概括一下：方法connect会对InetAddress[]进行一次循环，源码4.3.5在未对 NoRouteToHostException 进行处理，则方法会直接退出，并不会尝试第二个地址链接。</em></strong></p>
+<h2 id="JVM对IPV4和IPV6的选择"><a href="#JVM对IPV4和IPV6的选择" class="headerlink" title="JVM对IPV4和IPV6的选择"></a>JVM对IPV4和IPV6的选择</h2><p><strong><em>java.net.preferIPv4Stack (default: false)</em></strong> If IPv6 is available on the operating system the underlying native socket will be, by default, an IPv6 socket which lets applications connect to, and accept connections from, both IPv4 and IPv6 hosts. However, in the case an application would rather use IPv4 only sockets, then this property can be set to true. The implication is that it will not be possible for the application to communicate with IPv6 only hosts.</p>
+<p><strong><em>java.net.preferIPv6Addresses (default: false)</em></strong> When dealing with a host which has both IPv4 and IPv6 addresses, and if IPv6 is available on the operating system, the default behavior is to prefer using IPv4 addresses over IPv6 ones. This is to ensure backward compatibility, for example applications that depend on the representation of an IPv4 address (e.g. 192.168.1.1). This property can be set to true to change that preference and use IPv6 addresses over IPv4 ones where possible.</p>
+
+      
+    </div>
+
+  </div>
+
+  <div class="article-footer">
+    <div class="article-meta pull-left">
+
+    
+
+    
+    
+
+    <span class="post-tags">
+      <i class="icon-tags"></i>
+        <a href="/tags/ipv6/">ipv6</a><a href="/tags/httpclient/">httpclient</a>
+    </span>
+    
+
+    </div>
+
+    
+  </div>
+</article>
+
+
+    </main>
+
+    <footer class="site-footer">
+  <p class="site-info">
+    Proudly powered by <a href="https://hexo.io/" target="_blank">Hexo</a> and
+    Theme by <a href="https://github.com/CodeDaraW/Hacker" target="_blank">Hacker</a>
+    </br>
+    
+    &copy; 2019 wanglei
+    
+  </p>
+</footer>
+    
+<script>
+    (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+                (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+            m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+    })(window,document,'script','//www.google-analytics.com/analytics.js','ga');
+
+    ga('create', 'UA-83609983-2', 'auto');
+    ga('send', 'pageview');
+
+</script>
+
+  </div>
+</div>
+</body>
+</html>

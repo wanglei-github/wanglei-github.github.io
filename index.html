@@ -61,6 +61,328 @@
 
   
     
+    <h3 class="article-title"><a href="/2019/02/25/mysql中的行级锁/"><span>mysql中的行级锁</span></a></h3>
+    
+  
+
+  <div class="article-top-meta">
+    <span class="posted-on">
+      <a href="/2019/02/25/mysql中的行级锁/" rel="bookmark">
+        <time class="entry-date published" datetime="2019-02-25T09:28:37.000Z">
+          2019-02-25
+        </time>
+      </a>
+    </span>
+  </div>
+
+
+  
+
+  <div class="article-content">
+    <div class="entry">
+      
+        <h2 id="gap锁和next-key的意义"><a href="#gap锁和next-key的意义" class="headerlink" title="gap锁和next-key的意义"></a>gap锁和next-key的意义</h2><p>读过一些关于mysql的博文，都没有搞清楚什么是gap锁，什么next-key锁。直到看到一些官方文档，才对这些锁有了更清楚的认识。<a href="https://dev.mysql.com/doc/refman/5.7/en/innodb-locking.html" target="_blank" rel="noopener">官方直通门</a></p>
+<h3 id="gap-locks"><a href="#gap-locks" class="headerlink" title="gap locks"></a>gap locks</h3><p>引用官方文档</p>
+<blockquote>
+<p>A gap lock is a lock on a gap between index records, or a lock on the gap before the first or after the last index record</p>
+</blockquote>
+<p>这句是一个定义，我们能了解到，gap锁是作用在 index records即索引数据上。但对于实际应用还不是很透彻，但后面的文档举了一个例子</p>
+<blockquote>
+<p>For example, SELECT c1 FROM t WHERE c1 BETWEEN 10 and 20 FOR UPDATE; prevents other transactions from inserting a value of 15 into column t.c1, whether or not there was already any such value in the column, because the gaps between all existing values in the range are locked.</p>
+</blockquote>
+<p>比较重要的一部分是 <strong><em>prevents other transactions from inserting a value of 15 into column t.c1</em></strong></p>
+<p>其中<strong><em>inserting</em></strong> 这个动词，表明了gap锁的意义。gap locks是为了阻止其他事务的insert操作。</p>
+<h3 id="next-key-locks"><a href="#next-key-locks" class="headerlink" title="next-key locks"></a>next-key locks</h3><p>同样引用官方文档</p>
+<blockquote>
+<p>A next-key lock is a combination of a record lock on the index record and a gap lock on the gap before the index record.</p>
+</blockquote>
+<p>通过上面的文档，我们能理解到，next-key locks实际上是两种锁的组合。表明它既有record lock的特性，也有 gap lock 的特性。<br>那它到底是如何起作用的呢?</p>
+<blockquote>
+<p>A next-key lock on an index record also affects the “gap” before that index record</p>
+</blockquote>
+<blockquote>
+<p>that is, a next-key lock is an index-record lock plus a gap lock on the gap preceding the index record.</p>
+</blockquote>
+<p>首先 next-key是针对索引数据的key，其次，它还对该索引记录的之前的数据有 gap locks的作用。</p>
+<p>怎么理解呢？官方文档是这么说的</p>
+<blockquote>
+<p>If one session has a shared or exclusive lock on record R in an index, another session cannot insert a new index record in the gap immediately before R in the index order.</p>
+</blockquote>
+<p>举个🌰，假设有表child，其表结构为：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">CREATE TABLE `child` (</span><br><span class="line">  `id` int(11) NOT NULL AUTO_INCREMENT,</span><br><span class="line">  `name` varchar(22) DEFAULT NULL,</span><br><span class="line">  `age` int(11) DEFAULT NULL,</span><br><span class="line">  PRIMARY KEY (`id`),</span><br><span class="line">  KEY `age` (`age`)</span><br><span class="line">) ENGINE=InnoDB AUTO_INCREMENT DEFAULT CHARSET=utf8mb4;</span><br></pre></td></tr></table></figure></p>
+<p>假设有如下数据</p>
+<table>
+<thead>
+<tr>
+<th style="text-align:left">id</th>
+<th style="text-align:center">name</th>
+<th style="text-align:right">age</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left">1</td>
+<td style="text-align:center">jack</td>
+<td style="text-align:right">23</td>
+</tr>
+<tr>
+<td style="text-align:left">2</td>
+<td style="text-align:center">rose</td>
+<td style="text-align:right">19</td>
+</tr>
+</tbody>
+</table>
+<p>我们age列上是有普通索引的。那么根据next-key locks的定义，其实我们会有如下的 next-key locks锁</p>
+<table>
+<thead>
+<tr>
+<th style="text-align:left">next-key locks</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left">(negative infinity, 19]</td>
+</tr>
+<tr>
+<td style="text-align:left">(19, 23]</td>
+</tr>
+<tr>
+<td style="text-align:left">(23, positive infinity)</td>
+</tr>
+</tbody>
+</table>
+<p>所以，当有两个事务A、B同时执行，但A执行语句在B之前。<br>假设A为<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">update child set name=&quot;Lucy&quot; where age=19;</span><br></pre></td></tr></table></figure></p>
+<p>B为</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">insert child values(null,&quot;Lily&quot;,8);</span><br></pre></td></tr></table></figure>
+<p>那么根据定义，mysql会锁住 (negative infinity, 19]这块的数据，那么就会导致B事务堵塞。因为 8 在 (negative infinity, 19]中。但是如果是<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">insert child values(null,&quot;Lily&quot;,23);</span><br></pre></td></tr></table></figure></p>
+<p>就可以。</p>
+<p>我们再看下官方文档</p>
+<blockquote>
+<p>InnoDB uses next-key locks for searches and index scans, which prevents phantom rows</p>
+</blockquote>
+<p>通过上面我们能理解到next-key实际是为了解决<strong><em>幻读</em></strong>问题，<br>那么实际依然是阻止了其他事务的<strong><em>insert</em></strong>操作。</p>
+<p><strong><em>大家注意，以上例子，都是在普通索引上的操作，如果你操作的列是有unique索引或者是主键索引，那么都不会有gap locks的特性，以及next-key locks</em></strong></p>
+<blockquote>
+<p>Gap locking is not needed for statements that lock rows using a unique index to search for a unique row. (This does not include the case that the search condition includes only some columns of a multiple-column unique index; in that case, gap locking does occur.) </p>
+</blockquote>
+<p>所以，合适索引，不仅能保持查询效率，也可以保证行级别的精确性。</p>
+
+      
+    </div>
+
+  </div>
+
+  <div class="article-footer">
+    <div class="article-meta pull-left">
+
+    
+
+    
+    
+
+    <span class="post-tags">
+      <i class="icon-tags"></i>
+        <a href="/tags/mysql/">mysql</a><a href="/tags/innodb/">innodb</a><a href="/tags/官方文档/">官方文档</a><a href="/tags/gap-locks/">gap locks</a><a href="/tags/next-key-locks/">next-key locks</a><a href="/tags/mysql-5-7/">mysql 5.7</a>
+    </span>
+    
+
+    </div>
+
+    
+  </div>
+</article>
+
+
+
+  <article>
+
+  
+    
+    <h3 class="article-title"><a href="/2018/11/20/关于mysql表情符号存储简析/"><span>关于mysql表情符号存储简析</span></a></h3>
+    
+  
+
+  <div class="article-top-meta">
+    <span class="posted-on">
+      <a href="/2018/11/20/关于mysql表情符号存储简析/" rel="bookmark">
+        <time class="entry-date published" datetime="2018-11-20T08:28:47.000Z">
+          2018-11-20
+        </time>
+      </a>
+    </span>
+  </div>
+
+
+  
+
+  <div class="article-content">
+    <div class="entry">
+      
+        <h2 id="关键点的分析"><a href="#关键点的分析" class="headerlink" title="关键点的分析"></a>关键点的分析</h2><p>关于mysql存储表情符号的教程，网上一大堆。但根据一些教程设置后，还是会出现乱码的现象。根本的原因在于，没有了解整个存储过程。</p>
+<p>解决表情符号问题要从以下几点关注：</p>
+<ul>
+<li>clinet端</li>
+<li>connection链接（也可以理解为运输部分）</li>
+<li>table存储</li>
+<li>query查询（也可以理解为result结果）</li>
+</ul>
+<p>简言之，首先你和msyql进行交互时，你的client端首先需要编码正确，然后你将编码正确的数据必须在能够运输正确的轨道上运输（connection）,最后要能把数据放在能够正确存储编码的表里。至此已经完了存储。接下来实际时读取，也是query过程，这个过程也要保证connection正确，然后就是返回的结果数据也要正确编码。</p>
+<p>因此我在项目只设置了两项。</p>
+<ol>
+<li>table表属性为 uft8mb4</li>
+<li><a href="https://dev.mysql.com/doc/refman/8.0/en/charset-connection.html" target="_blank" rel="noopener">set names utf8mb4</a> </li>
+</ol>
+<p>第二项等同于 <strong><em>character_set_client</em></strong>, <strong><em>character_set_results</em></strong>, <strong><em>character_set_connection</em></strong> 设置了这三项的值。</p>
+<p>还有注意一点，就是mysql的一些属性的作用域只在当前会话中。因此，在实际使用过程中，需要在每次获取链接时，进行设置。有些三方的数据库链接池是有connectionInitSqls等属性支持的。</p>
+<p>其实，任意编码问题都可以从这个方向进行梳理，数据元格式必须正确，传输过程必须支持，存储需要支持，读取也要按正确的编码进行读取。</p>
+
+      
+    </div>
+
+  </div>
+
+  <div class="article-footer">
+    <div class="article-meta pull-left">
+
+    
+
+    
+    
+
+    <span class="post-tags">
+      <i class="icon-tags"></i>
+        <a href="/tags/mysql/">mysql</a><a href="/tags/表情符号/">表情符号</a><a href="/tags/emoji/">emoji</a><a href="/tags/编码问题/">编码问题</a>
+    </span>
+    
+
+    </div>
+
+    
+  </div>
+</article>
+
+
+
+  <article>
+
+  
+    
+    <h3 class="article-title"><a href="/2018/11/19/生产环境canal发生oom异常简记/"><span>生产环境canal发生oom异常简记</span></a></h3>
+    
+  
+
+  <div class="article-top-meta">
+    <span class="posted-on">
+      <a href="/2018/11/19/生产环境canal发生oom异常简记/" rel="bookmark">
+        <time class="entry-date published" datetime="2018-11-19T09:50:54.000Z">
+          2018-11-19
+        </time>
+      </a>
+    </span>
+  </div>
+
+
+  
+
+  <div class="article-content">
+    <div class="entry">
+      
+        <h2 id="背景"><a href="#背景" class="headerlink" title="背景"></a>背景</h2><p><a href="https://github.com/alibaba/canal" target="_blank" rel="noopener">canal</a>是alibaba开源一个基于binlog的增量订阅&amp;消费组件。以一个生产者消费者的经典模式，将生产者canal-server伪装成一个mysql的从库，对binlog进行解读，消费者通过轮询方式，获取binlog的数据操作内容。利用canal可以实现很多有意思的场景。</p>
+<p>我们在生产环境中，利用canal+kafka的架构，来实现一下报表等功能。</p>
+<h2 id="OOM问题"><a href="#OOM问题" class="headerlink" title="OOM问题"></a>OOM问题</h2><p>一开始在使用canal并没有特别大的问题，配置也利用了默认配置（<strong>多了解配置，可以帮助你更清楚的搞懂这个工具的原理</strong>）。直到有次，线上库进行一次数据批量导入，canal的消费者异常邮件狂爆，即使备份（canal有个基于zk的冷备机制）起来了，不一会备份也会爆邮件。</p>
+<p>查看日志，发现OOM了，canal-server在启动脚本增加了dump的命令（还是阿里大法厉害）。通过dump日志我们发现了问题原因。由于批量倒库，一条<code>insert values(xxx)</code>有1M的大小。<br>canal-server将消费的binlog会存储在内存中，并利用Ringbuffer一种数据结构进行存储，这种数据结构比较有意思，在很多场景中都有用到过，最著名的是<a href="http://ifeve.com/disruptor" target="_blank" rel="noopener">disruptor 中文版</a>。</p>
+<p>canal-server在设置Ringbuffer的默认大小是16384，16384*1M约等于16G，内存根本吃不消，导致OOM的发生，之后调大了heap，并将Ringbuffer的大小调小到1024。</p>
+<p>线上就再也没有发生过OOM。</p>
+
+      
+    </div>
+
+  </div>
+
+  <div class="article-footer">
+    <div class="article-meta pull-left">
+
+    
+
+    
+    
+
+    <span class="post-tags">
+      <i class="icon-tags"></i>
+        <a href="/tags/java/">java</a><a href="/tags/canal/">canal</a><a href="/tags/OOM/">OOM</a><a href="/tags/RingBuffer/">RingBuffer</a>
+    </span>
+    
+
+    </div>
+
+    
+  </div>
+</article>
+
+
+
+  <article>
+
+  
+    
+    <h3 class="article-title"><a href="/2018/08/30/HttpClient针对IPV6的支持/"><span>HttpClient针对IPV6的支持</span></a></h3>
+    
+  
+
+  <div class="article-top-meta">
+    <span class="posted-on">
+      <a href="/2018/08/30/HttpClient针对IPV6的支持/" rel="bookmark">
+        <time class="entry-date published" datetime="2018-08-30T10:13:37.000Z">
+          2018-08-30
+        </time>
+      </a>
+    </span>
+  </div>
+
+
+  
+
+  <div class="article-content">
+    <div class="entry">
+      
+        <p>ipv6会逐渐代替ipv4协议，对于一些插件使用，若不及时更新版本，会有意想不到的问题。比如java中常用的httplcient组件。</p>
+<h2 id="HttpClient-版本不能低于4-3-6"><a href="#HttpClient-版本不能低于4-3-6" class="headerlink" title="HttpClient 版本不能低于4.3.6"></a>HttpClient 版本不能低于4.3.6</h2><p><strong>原因</strong>：在4.3.6中，httpclient新增了对于异常NoRouteToHostException的处理,低于4.3.6的httpclient会忽视这个异常，导致链接失败。</p>
+<h2 id="NoRouteToHostException的异常处理"><a href="#NoRouteToHostException的异常处理" class="headerlink" title="NoRouteToHostException的异常处理"></a>NoRouteToHostException的异常处理</h2><h3 id="源码4-3-6"><a href="#源码4-3-6" class="headerlink" title="源码4.3.6"></a>源码4.3.6</h3><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br></pre></td><td class="code"><pre><span class="line">class HttpClientConnectionOperator &#123;</span><br><span class="line">    ...省略其他代码</span><br><span class="line">   //关注此方法的异常处理</span><br><span class="line">	public void connect(ManagedHttpClientConnection conn, HttpHost host, InetSocketAddress localAddress, int connectTimeout, SocketConfig socketConfig, HttpContext context) throws IOException &#123;</span><br><span class="line">        Lookup&lt;ConnectionSocketFactory&gt; registry = this.getSocketFactoryRegistry(context);</span><br><span class="line">        ConnectionSocketFactory sf = (ConnectionSocketFactory)registry.lookup(host.getSchemeName());</span><br><span class="line">        if (sf == null) &#123;</span><br><span class="line">            throw new UnsupportedSchemeException(host.getSchemeName() + &quot; protocol is not supported&quot;);</span><br><span class="line">        &#125; else &#123;</span><br><span class="line">        	  若host包含ipv4和ipv6，则addresses会包含2个</span><br><span class="line">            InetAddress[] addresses = host.getAddress() != null ? new InetAddress[]&#123;host.getAddress()&#125; : this.dnsResolver.resolve(host.getHostName());</span><br><span class="line">            int port = this.schemePortResolver.resolve(host);</span><br><span class="line"></span><br><span class="line">            for(int i = 0; i &lt; addresses.length; ++i) &#123;</span><br><span class="line">                InetAddress address = addresses[i];</span><br><span class="line">                boolean last = i == addresses.length - 1;</span><br><span class="line">                Socket sock = sf.createSocket(context);</span><br><span class="line">                sock.setSoTimeout(socketConfig.getSoTimeout());</span><br><span class="line">                sock.setReuseAddress(socketConfig.isSoReuseAddress());</span><br><span class="line">                sock.setTcpNoDelay(socketConfig.isTcpNoDelay());</span><br><span class="line">                sock.setKeepAlive(socketConfig.isSoKeepAlive());</span><br><span class="line">                int linger = socketConfig.getSoLinger();</span><br><span class="line">                if (linger &gt;= 0) &#123;</span><br><span class="line">                    sock.setSoLinger(linger &gt; 0, linger);</span><br><span class="line">                &#125;</span><br><span class="line"></span><br><span class="line">                conn.bind(sock);</span><br><span class="line">                InetSocketAddress remoteAddress = new InetSocketAddress(address, port);</span><br><span class="line">                if (this.log.isDebugEnabled()) &#123;</span><br><span class="line">                    this.log.debug(&quot;Connecting to &quot; + remoteAddress);</span><br><span class="line">                &#125;</span><br><span class="line"></span><br><span class="line">                try &#123;</span><br><span class="line">                    sock = sf.connectSocket(connectTimeout, sock, host, remoteAddress, localAddress, context);</span><br><span class="line">                    conn.bind(sock);</span><br><span class="line">                    if (this.log.isDebugEnabled()) &#123;</span><br><span class="line">                        this.log.debug(&quot;Connection established &quot; + conn);</span><br><span class="line">                    &#125;</span><br><span class="line"></span><br><span class="line">                    return;</span><br><span class="line">                &#125; catch (SocketTimeoutException var19) &#123;</span><br><span class="line">                    if (last) &#123;</span><br><span class="line">                        throw new ConnectTimeoutException(var19, host, addresses);</span><br><span class="line">                    &#125;</span><br><span class="line">                &#125; catch (ConnectException var20) &#123;</span><br><span class="line">                    if (last) &#123;</span><br><span class="line">                        String msg = var20.getMessage();</span><br><span class="line">                        if (&quot;Connection timed out&quot;.equals(msg)) &#123;</span><br><span class="line">                            throw new ConnectTimeoutException(var20, host, addresses);</span><br><span class="line">                        &#125;</span><br><span class="line"></span><br><span class="line">                        throw new HttpHostConnectException(var20, host, addresses);</span><br><span class="line">                    &#125;</span><br><span class="line">                    //此处新增了对于NoRouteToHostException的处理，若访问的host同时拥有ipv4和ipv6，但链接不支持ipv6，会抛出此异常。若不加以处理，则直接会直接报错，退出。</span><br><span class="line">                &#125; catch (NoRouteToHostException var21) &#123;</span><br><span class="line">                    if (last) &#123;</span><br><span class="line">                        throw var21;</span><br><span class="line">                    &#125;</span><br><span class="line">                &#125;</span><br><span class="line"></span><br><span class="line">                if (this.log.isDebugEnabled()) &#123;</span><br><span class="line">                    this.log.debug(&quot;Connect to &quot; + remoteAddress + &quot; timed out. &quot; + &quot;Connection will be retried using another IP address&quot;);</span><br><span class="line">                &#125;</span><br><span class="line">            &#125;</span><br><span class="line"></span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<h3 id="源码4-3-5"><a href="#源码4-3-5" class="headerlink" title="源码4.3.5"></a>源码4.3.5</h3><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br></pre></td><td class="code"><pre><span class="line">class HttpClientConnectionOperator &#123;</span><br><span class="line">  ...省略其他代码</span><br><span class="line">  public void connect(</span><br><span class="line">            final ManagedHttpClientConnection conn,</span><br><span class="line">            final HttpHost host,</span><br><span class="line">            final InetSocketAddress localAddress,</span><br><span class="line">            final int connectTimeout,</span><br><span class="line">            final SocketConfig socketConfig,</span><br><span class="line">            final HttpContext context) throws IOException &#123;</span><br><span class="line">        final Lookup&lt;ConnectionSocketFactory&gt; registry = getSocketFactoryRegistry(context);</span><br><span class="line">        final ConnectionSocketFactory sf = registry.lookup(host.getSchemeName());</span><br><span class="line">        if (sf == null) &#123;</span><br><span class="line">            throw new UnsupportedSchemeException(host.getSchemeName() +</span><br><span class="line">                    &quot; protocol is not supported&quot;);</span><br><span class="line">        &#125;</span><br><span class="line">         //若host包含ipv4和ipv6，则addresses会包含2个</span><br><span class="line">        final InetAddress[] addresses = this.dnsResolver.resolve(host.getHostName());</span><br><span class="line">        final int port = this.schemePortResolver.resolve(host);</span><br><span class="line">        for (int i = 0; i &lt; addresses.length; i++) &#123;</span><br><span class="line">            final InetAddress address = addresses[i];</span><br><span class="line">            final boolean last = i == addresses.length - 1;</span><br><span class="line"></span><br><span class="line">            Socket sock = sf.createSocket(context);</span><br><span class="line">            sock.setSoTimeout(socketConfig.getSoTimeout());</span><br><span class="line">            sock.setReuseAddress(socketConfig.isSoReuseAddress());</span><br><span class="line">            sock.setTcpNoDelay(socketConfig.isTcpNoDelay());</span><br><span class="line">            sock.setKeepAlive(socketConfig.isSoKeepAlive());</span><br><span class="line">            final int linger = socketConfig.getSoLinger();</span><br><span class="line">            if (linger &gt;= 0) &#123;</span><br><span class="line">                sock.setSoLinger(linger &gt; 0, linger);</span><br><span class="line">            &#125;</span><br><span class="line">            conn.bind(sock);</span><br><span class="line"></span><br><span class="line">            final InetSocketAddress remoteAddress = new InetSocketAddress(address, port);</span><br><span class="line">            if (this.log.isDebugEnabled()) &#123;</span><br><span class="line">                this.log.debug(&quot;Connecting to &quot; + remoteAddress);</span><br><span class="line">            &#125;</span><br><span class="line">            try &#123;</span><br><span class="line">                sock = sf.connectSocket(</span><br><span class="line">                        connectTimeout, sock, host, remoteAddress, localAddress, context);</span><br><span class="line">                conn.bind(sock);</span><br><span class="line">                if (this.log.isDebugEnabled()) &#123;</span><br><span class="line">                    this.log.debug(&quot;Connection established &quot; + conn);</span><br><span class="line">                &#125;</span><br><span class="line">                return;</span><br><span class="line">            &#125; catch (final SocketTimeoutException ex) &#123;</span><br><span class="line">                if (last) &#123;</span><br><span class="line">                    throw new ConnectTimeoutException(ex, host, addresses);</span><br><span class="line">                &#125;</span><br><span class="line">            //相对于源码4.3.6 这里缺少了对于 NoRouteToHostException 异常处理，导致链接失败。</span><br><span class="line">            &#125; catch (final ConnectException ex) &#123;</span><br><span class="line">                if (last) &#123;</span><br><span class="line">                    final String msg = ex.getMessage();</span><br><span class="line">                    if (&quot;Connection timed out&quot;.equals(msg)) &#123;</span><br><span class="line">                        throw new ConnectTimeoutException(ex, host, addresses);</span><br><span class="line">                    &#125; else &#123;</span><br><span class="line">                        throw new HttpHostConnectException(ex, host, addresses);</span><br><span class="line">                    &#125;</span><br><span class="line">                &#125;</span><br><span class="line">            &#125;</span><br><span class="line">            if (this.log.isDebugEnabled()) &#123;</span><br><span class="line">                this.log.debug(&quot;Connect to &quot; + remoteAddress + &quot; timed out. &quot; +</span><br><span class="line">                        &quot;Connection will be retried using another IP address&quot;);</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p><strong><em>概括一下：方法connect会对InetAddress[]进行一次循环，源码4.3.5在未对 NoRouteToHostException 进行处理，则方法会直接退出，并不会尝试第二个地址链接。</em></strong></p>
+<h2 id="JVM对IPV4和IPV6的选择"><a href="#JVM对IPV4和IPV6的选择" class="headerlink" title="JVM对IPV4和IPV6的选择"></a>JVM对IPV4和IPV6的选择</h2><p><strong><em>java.net.preferIPv4Stack (default: false)</em></strong> If IPv6 is available on the operating system the underlying native socket will be, by default, an IPv6 socket which lets applications connect to, and accept connections from, both IPv4 and IPv6 hosts. However, in the case an application would rather use IPv4 only sockets, then this property can be set to true. The implication is that it will not be possible for the application to communicate with IPv6 only hosts.</p>
+<p><strong><em>java.net.preferIPv6Addresses (default: false)</em></strong> When dealing with a host which has both IPv4 and IPv6 addresses, and if IPv6 is available on the operating system, the default behavior is to prefer using IPv4 addresses over IPv6 ones. This is to ensure backward compatibility, for example applications that depend on the representation of an IPv4 address (e.g. 192.168.1.1). This property can be set to true to change that preference and use IPv6 addresses over IPv4 ones where possible.</p>
+
+      
+    </div>
+
+  </div>
+
+  <div class="article-footer">
+    <div class="article-meta pull-left">
+
+    
+
+    
+    
+
+    <span class="post-tags">
+      <i class="icon-tags"></i>
+        <a href="/tags/ipv6/">ipv6</a><a href="/tags/httpclient/">httpclient</a>
+    </span>
+    
+
+    </div>
+
+    
+  </div>
+</article>
+
+
+
+  <article>
+
+  
+    
     <h3 class="article-title"><a href="/2018/05/05/北野武的小酒馆/"><span>北野武的小酒馆</span></a></h3>
     
   
@@ -517,64 +839,11 @@
 
 
 
-  <article>
-
-  
-    
-    <h3 class="article-title"><a href="/2018/04/12/hello-word/"><span>Hello World</span></a></h3>
-    
-  
-
-  <div class="article-top-meta">
-    <span class="posted-on">
-      <a href="/2018/04/12/hello-word/" rel="bookmark">
-        <time class="entry-date published" datetime="2018-04-12T06:43:08.000Z">
-          2018-04-12
-        </time>
-      </a>
-    </span>
-  </div>
-
-
-  
-
-  <div class="article-content">
-    <div class="entry">
-      
-        <p>几经周折，终于搭建第一个个人网站，还是挺费劲的。</p>
-<p>感谢开源界的大神们能开发出hexo这么有意思且好用的工具。</p>
-<p>为了回馈，下一篇准备写一篇关于个人网站的搭建教程。^_^</p>
-
-      
-    </div>
-
-  </div>
-
-  <div class="article-footer">
-    <div class="article-meta pull-left">
-
-    
-
-    
-    
-
-    <span class="post-tags">
-      <i class="icon-tags"></i>
-        <a href="/tags/初始化/">初始化</a>
-    </span>
-    
-
-    </div>
-
-    
-  </div>
-</article>
-
-
-
 
 <nav class="pagination">
   
+  
+  <a href="/page/2/" class="pagination-next">下一页</a>
   
 </nav>
     </main>
@@ -585,7 +854,7 @@
     Theme by <a href="https://github.com/CodeDaraW/Hacker" target="_blank">Hacker</a>
     </br>
     
-    &copy; 2018 wanglei
+    &copy; 2019 wanglei
     
   </p>
 </footer>

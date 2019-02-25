@@ -1,0 +1,149 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+  <meta charset="utf-8">
+  
+  <title>生产环境canal发生oom异常简记 | Code Work Life | 思考很重要，行动更重要</title>
+
+  
+  <meta name="author" content="wanglei">
+  
+
+  
+  <meta name="description" content="背景canal是alibaba开源一个基于binlog的增量订阅&amp;amp;消费组件。以一个生产者消费者的经典模式，将生产者canal-server伪装成一个mysql的从库，对binlog进行解读，消费者通过轮询方式，获取binlog的数据操作内容。利用canal可以实现很多有意思的场景。
+我们在生">
+  
+
+  
+  
+  <meta name="keywords" content="java,canal,OOM,RingBuffer">
+  
+
+  <meta id="viewport" name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no, minimal-ui">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+
+  <meta property="og:title" content="生产环境canal发生oom异常简记"/>
+
+  <meta property="og:site_name" content="Code Work Life"/>
+
+  
+  <meta property="og:image" content="/favicon.ico"/>
+  
+
+  <link href="/favicon.png" rel="icon">
+  <link rel="alternate" href="/atom.xml" title="Code Work Life" type="application/atom+xml">
+  <link rel="stylesheet" href="/css/style.css" media="screen" type="text/css">
+</head>
+
+
+<body>
+<div class="blog">
+  <div class="content">
+
+    <header>
+  <div class="site-branding">
+    <h1 class="site-title">
+      <a href="/">Code Work Life</a>
+    </h1>
+    <p class="site-description">思考很重要，行动更重要</p>
+  </div>
+  <nav class="site-navigation">
+    <ul>
+      
+        <li><a href="/">主页</a></li>
+      
+        <li><a href="/archives">归档</a></li>
+      
+        <li><a href="/about">关于</a></li>
+      
+    </ul>
+  </nav>
+</header>
+
+    <main class="site-main posts-loop">
+    <article>
+
+  
+    
+    <h3 class="article-title"><span>生产环境canal发生oom异常简记</span></h3>
+    
+  
+
+  <div class="article-top-meta">
+    <span class="posted-on">
+      <a href="/2018/11/19/生产环境canal发生oom异常简记/" rel="bookmark">
+        <time class="entry-date published" datetime="2018-11-19T09:50:54.000Z">
+          2018-11-19
+        </time>
+      </a>
+    </span>
+  </div>
+
+
+  
+
+  <div class="article-content">
+    <div class="entry">
+      
+        <h2 id="背景"><a href="#背景" class="headerlink" title="背景"></a>背景</h2><p><a href="https://github.com/alibaba/canal" target="_blank" rel="noopener">canal</a>是alibaba开源一个基于binlog的增量订阅&amp;消费组件。以一个生产者消费者的经典模式，将生产者canal-server伪装成一个mysql的从库，对binlog进行解读，消费者通过轮询方式，获取binlog的数据操作内容。利用canal可以实现很多有意思的场景。</p>
+<p>我们在生产环境中，利用canal+kafka的架构，来实现一下报表等功能。</p>
+<h2 id="OOM问题"><a href="#OOM问题" class="headerlink" title="OOM问题"></a>OOM问题</h2><p>一开始在使用canal并没有特别大的问题，配置也利用了默认配置（<strong>多了解配置，可以帮助你更清楚的搞懂这个工具的原理</strong>）。直到有次，线上库进行一次数据批量导入，canal的消费者异常邮件狂爆，即使备份（canal有个基于zk的冷备机制）起来了，不一会备份也会爆邮件。</p>
+<p>查看日志，发现OOM了，canal-server在启动脚本增加了dump的命令（还是阿里大法厉害）。通过dump日志我们发现了问题原因。由于批量倒库，一条<code>insert values(xxx)</code>有1M的大小。<br>canal-server将消费的binlog会存储在内存中，并利用Ringbuffer一种数据结构进行存储，这种数据结构比较有意思，在很多场景中都有用到过，最著名的是<a href="http://ifeve.com/disruptor" target="_blank" rel="noopener">disruptor 中文版</a>。</p>
+<p>canal-server在设置Ringbuffer的默认大小是16384，16384*1M约等于16G，内存根本吃不消，导致OOM的发生，之后调大了heap，并将Ringbuffer的大小调小到1024。</p>
+<p>线上就再也没有发生过OOM。</p>
+
+      
+    </div>
+
+  </div>
+
+  <div class="article-footer">
+    <div class="article-meta pull-left">
+
+    
+
+    
+    
+
+    <span class="post-tags">
+      <i class="icon-tags"></i>
+        <a href="/tags/java/">java</a><a href="/tags/canal/">canal</a><a href="/tags/OOM/">OOM</a><a href="/tags/RingBuffer/">RingBuffer</a>
+    </span>
+    
+
+    </div>
+
+    
+  </div>
+</article>
+
+
+    </main>
+
+    <footer class="site-footer">
+  <p class="site-info">
+    Proudly powered by <a href="https://hexo.io/" target="_blank">Hexo</a> and
+    Theme by <a href="https://github.com/CodeDaraW/Hacker" target="_blank">Hacker</a>
+    </br>
+    
+    &copy; 2019 wanglei
+    
+  </p>
+</footer>
+    
+<script>
+    (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+                (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+            m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+    })(window,document,'script','//www.google-analytics.com/analytics.js','ga');
+
+    ga('create', 'UA-83609983-2', 'auto');
+    ga('send', 'pageview');
+
+</script>
+
+  </div>
+</div>
+</body>
+</html>

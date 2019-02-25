@@ -1,0 +1,229 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+  <meta charset="utf-8">
+  
+  <title>mysql中的行级锁 | Code Work Life | 思考很重要，行动更重要</title>
+
+  
+  <meta name="author" content="wanglei">
+  
+
+  
+  <meta name="description" content="gap锁和next-key的意义读过一些关于mysql的博文，都没有搞清楚什么是gap锁，什么next-key锁。直到看到一些官方文档，才对这些锁有了更清楚的认识。官方直通门
+gap locks引用官方文档
+
+A gap lock is a lock on a gap between index r">
+  
+
+  
+  
+  <meta name="keywords" content="mysql,innodb,官方文档,gap locks,next-key locks,mysql 5.7">
+  
+
+  <meta id="viewport" name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no, minimal-ui">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+
+  <meta property="og:title" content="mysql中的行级锁"/>
+
+  <meta property="og:site_name" content="Code Work Life"/>
+
+  
+  <meta property="og:image" content="/favicon.ico"/>
+  
+
+  <link href="/favicon.png" rel="icon">
+  <link rel="alternate" href="/atom.xml" title="Code Work Life" type="application/atom+xml">
+  <link rel="stylesheet" href="/css/style.css" media="screen" type="text/css">
+</head>
+
+
+<body>
+<div class="blog">
+  <div class="content">
+
+    <header>
+  <div class="site-branding">
+    <h1 class="site-title">
+      <a href="/">Code Work Life</a>
+    </h1>
+    <p class="site-description">思考很重要，行动更重要</p>
+  </div>
+  <nav class="site-navigation">
+    <ul>
+      
+        <li><a href="/">主页</a></li>
+      
+        <li><a href="/archives">归档</a></li>
+      
+        <li><a href="/about">关于</a></li>
+      
+    </ul>
+  </nav>
+</header>
+
+    <main class="site-main posts-loop">
+    <article>
+
+  
+    
+    <h3 class="article-title"><span>mysql中的行级锁</span></h3>
+    
+  
+
+  <div class="article-top-meta">
+    <span class="posted-on">
+      <a href="/2019/02/25/mysql中的行级锁/" rel="bookmark">
+        <time class="entry-date published" datetime="2019-02-25T09:28:37.000Z">
+          2019-02-25
+        </time>
+      </a>
+    </span>
+  </div>
+
+
+  
+
+  <div class="article-content">
+    <div class="entry">
+      
+        <h2 id="gap锁和next-key的意义"><a href="#gap锁和next-key的意义" class="headerlink" title="gap锁和next-key的意义"></a>gap锁和next-key的意义</h2><p>读过一些关于mysql的博文，都没有搞清楚什么是gap锁，什么next-key锁。直到看到一些官方文档，才对这些锁有了更清楚的认识。<a href="https://dev.mysql.com/doc/refman/5.7/en/innodb-locking.html" target="_blank" rel="noopener">官方直通门</a></p>
+<h3 id="gap-locks"><a href="#gap-locks" class="headerlink" title="gap locks"></a>gap locks</h3><p>引用官方文档</p>
+<blockquote>
+<p>A gap lock is a lock on a gap between index records, or a lock on the gap before the first or after the last index record</p>
+</blockquote>
+<p>这句是一个定义，我们能了解到，gap锁是作用在 index records即索引数据上。但对于实际应用还不是很透彻，但后面的文档举了一个例子</p>
+<blockquote>
+<p>For example, SELECT c1 FROM t WHERE c1 BETWEEN 10 and 20 FOR UPDATE; prevents other transactions from inserting a value of 15 into column t.c1, whether or not there was already any such value in the column, because the gaps between all existing values in the range are locked.</p>
+</blockquote>
+<p>比较重要的一部分是 <strong><em>prevents other transactions from inserting a value of 15 into column t.c1</em></strong></p>
+<p>其中<strong><em>inserting</em></strong> 这个动词，表明了gap锁的意义。gap locks是为了阻止其他事务的insert操作。</p>
+<h3 id="next-key-locks"><a href="#next-key-locks" class="headerlink" title="next-key locks"></a>next-key locks</h3><p>同样引用官方文档</p>
+<blockquote>
+<p>A next-key lock is a combination of a record lock on the index record and a gap lock on the gap before the index record.</p>
+</blockquote>
+<p>通过上面的文档，我们能理解到，next-key locks实际上是两种锁的组合。表明它既有record lock的特性，也有 gap lock 的特性。<br>那它到底是如何起作用的呢?</p>
+<blockquote>
+<p>A next-key lock on an index record also affects the “gap” before that index record</p>
+</blockquote>
+<blockquote>
+<p>that is, a next-key lock is an index-record lock plus a gap lock on the gap preceding the index record.</p>
+</blockquote>
+<p>首先 next-key是针对索引数据的key，其次，它还对该索引记录的之前的数据有 gap locks的作用。</p>
+<p>怎么理解呢？官方文档是这么说的</p>
+<blockquote>
+<p>If one session has a shared or exclusive lock on record R in an index, another session cannot insert a new index record in the gap immediately before R in the index order.</p>
+</blockquote>
+<p>举个🌰，假设有表child，其表结构为：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">CREATE TABLE `child` (</span><br><span class="line">  `id` int(11) NOT NULL AUTO_INCREMENT,</span><br><span class="line">  `name` varchar(22) DEFAULT NULL,</span><br><span class="line">  `age` int(11) DEFAULT NULL,</span><br><span class="line">  PRIMARY KEY (`id`),</span><br><span class="line">  KEY `age` (`age`)</span><br><span class="line">) ENGINE=InnoDB AUTO_INCREMENT DEFAULT CHARSET=utf8mb4;</span><br></pre></td></tr></table></figure></p>
+<p>假设有如下数据</p>
+<table>
+<thead>
+<tr>
+<th style="text-align:left">id</th>
+<th style="text-align:center">name</th>
+<th style="text-align:right">age</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left">1</td>
+<td style="text-align:center">jack</td>
+<td style="text-align:right">23</td>
+</tr>
+<tr>
+<td style="text-align:left">2</td>
+<td style="text-align:center">rose</td>
+<td style="text-align:right">19</td>
+</tr>
+</tbody>
+</table>
+<p>我们age列上是有普通索引的。那么根据next-key locks的定义，其实我们会有如下的 next-key locks锁</p>
+<table>
+<thead>
+<tr>
+<th style="text-align:left">next-key locks</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left">(negative infinity, 19]</td>
+</tr>
+<tr>
+<td style="text-align:left">(19, 23]</td>
+</tr>
+<tr>
+<td style="text-align:left">(23, positive infinity)</td>
+</tr>
+</tbody>
+</table>
+<p>所以，当有两个事务A、B同时执行，但A执行语句在B之前。<br>假设A为<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">update child set name=&quot;Lucy&quot; where age=19;</span><br></pre></td></tr></table></figure></p>
+<p>B为</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">insert child values(null,&quot;Lily&quot;,8);</span><br></pre></td></tr></table></figure>
+<p>那么根据定义，mysql会锁住 (negative infinity, 19]这块的数据，那么就会导致B事务堵塞。因为 8 在 (negative infinity, 19]中。但是如果是<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">insert child values(null,&quot;Lily&quot;,23);</span><br></pre></td></tr></table></figure></p>
+<p>就可以。</p>
+<p>我们再看下官方文档</p>
+<blockquote>
+<p>InnoDB uses next-key locks for searches and index scans, which prevents phantom rows</p>
+</blockquote>
+<p>通过上面我们能理解到next-key实际是为了解决<strong><em>幻读</em></strong>问题，<br>那么实际依然是阻止了其他事务的<strong><em>insert</em></strong>操作。</p>
+<p><strong><em>大家注意，以上例子，都是在普通索引上的操作，如果你操作的列是有unique索引或者是主键索引，那么都不会有gap locks的特性，以及next-key locks</em></strong></p>
+<blockquote>
+<p>Gap locking is not needed for statements that lock rows using a unique index to search for a unique row. (This does not include the case that the search condition includes only some columns of a multiple-column unique index; in that case, gap locking does occur.) </p>
+</blockquote>
+<p>所以，合适索引，不仅能保持查询效率，也可以保证行级别的精确性。</p>
+
+      
+    </div>
+
+  </div>
+
+  <div class="article-footer">
+    <div class="article-meta pull-left">
+
+    
+
+    
+    
+
+    <span class="post-tags">
+      <i class="icon-tags"></i>
+        <a href="/tags/mysql/">mysql</a><a href="/tags/innodb/">innodb</a><a href="/tags/官方文档/">官方文档</a><a href="/tags/gap-locks/">gap locks</a><a href="/tags/next-key-locks/">next-key locks</a><a href="/tags/mysql-5-7/">mysql 5.7</a>
+    </span>
+    
+
+    </div>
+
+    
+  </div>
+</article>
+
+
+    </main>
+
+    <footer class="site-footer">
+  <p class="site-info">
+    Proudly powered by <a href="https://hexo.io/" target="_blank">Hexo</a> and
+    Theme by <a href="https://github.com/CodeDaraW/Hacker" target="_blank">Hacker</a>
+    </br>
+    
+    &copy; 2019 wanglei
+    
+  </p>
+</footer>
+    
+<script>
+    (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+                (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+            m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+    })(window,document,'script','//www.google-analytics.com/analytics.js','ga');
+
+    ga('create', 'UA-83609983-2', 'auto');
+    ga('send', 'pageview');
+
+</script>
+
+  </div>
+</div>
+</body>
+</html>
