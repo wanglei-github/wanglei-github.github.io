@@ -61,6 +61,65 @@
 
   
     
+    <h3 class="article-title"><a href="/2020/01/01/【MySql】摘要/"><span>【MySql】摘要</span></a></h3>
+    
+  
+
+  <div class="article-top-meta">
+    <span class="posted-on">
+      <a href="/2020/01/01/【MySql】摘要/" rel="bookmark">
+        <time class="entry-date published" datetime="2020-01-01T08:54:34.000Z">
+          2020-01-01
+        </time>
+      </a>
+    </span>
+  </div>
+
+
+  
+
+  <div class="article-content">
+    <div class="entry">
+      
+        <figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">原文 https://www.aneasystone.com/archives/2018/04/solving-dead-locks-four.html</span><br></pre></td></tr></table></figure>
+<h3 id="摘要"><a href="#摘要" class="headerlink" title="摘要"></a>摘要</h3><ul>
+<li>要知道在范围查询时，加锁是一条记录一条记录挨个加锁的，所以虽然只有一条 SQL 语句，如果两条 SQL 语句的加锁顺序不一样，也会导致死锁。</li>
+<li><p>日志锁类型</p>
+<ol>
+<li>记录锁（LOCK_REC_NOT_GAP）: lock_mode X locks rec but not gap</li>
+<li>间隙锁（LOCK_GAP）: lock_mode X locks gap before rec</li>
+<li>Next-key 锁（LOCK_ORNIDARY）: lock_mode X</li>
+<li><p>插入意向锁（LOCK_INSERT_INTENTION）: lock_mode X locks gap before rec insert intention</p>
+<p>这里有一点要注意的是，并不是在日志里看到 lock_mode X 就认为这是 Next-key 锁，因为还有一个例外：如果在 <strong><em>supremum record</em></strong> 上加锁，<em>locks gap before rec</em> 会省略掉，间隙锁会显示成 lock_mode X，插入意向锁会显示成 <em>lock_mode X insert intention</em>。譬如下面这个</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">RECORD LOCKS space id 0 page no 307 n bits 72 index `PRIMARY` of table `test`.`test` trx id 50F lock_mode X </span><br><span class="line">Record lock, heap no 1 PHYSICAL RECORD: n_fields 1; compact format; info bits 0</span><br></pre></td></tr></table></figure></li>
+</ol>
+</li>
+</ul>
+
+      
+    </div>
+
+  </div>
+
+  <div class="article-footer">
+    <div class="article-meta pull-left">
+
+    
+
+    
+
+    </div>
+
+    
+  </div>
+</article>
+
+
+
+  <article>
+
+  
+    
     <h3 class="article-title"><a href="/2019/04/13/备忘录-一/"><span>备忘录(一)</span></a></h3>
     
   
@@ -763,66 +822,6 @@
     <span class="post-tags">
       <i class="icon-tags"></i>
         <a href="/tags/多线程/">多线程</a><a href="/tags/锁/">锁</a><a href="/tags/java基础/">java基础</a><a href="/tags/网易面试题/">网易面试题</a>
-    </span>
-    
-
-    </div>
-
-    
-  </div>
-</article>
-
-
-
-  <article>
-
-  
-    
-    <h3 class="article-title"><a href="/2018/04/14/喜迎新生/"><span>喜迎新生</span></a></h3>
-    
-  
-
-  <div class="article-top-meta">
-    <span class="posted-on">
-      <a href="/2018/04/14/喜迎新生/" rel="bookmark">
-        <time class="entry-date published" datetime="2018-04-14T14:45:42.000Z">
-          2018-04-14
-        </time>
-      </a>
-    </span>
-  </div>
-
-
-  
-
-  <div class="article-content">
-    <div class="entry">
-      
-        <p><strong>今天</strong>大家庭里，又新来了一位，从此又多了侄子。</p>
-<blockquote>
-<p>茅檐低小<br>溪上青青草<br>醉里吴音相沫好<br>白发谁家翁媪<br>大儿豆溪东<br>中儿正织鸡笼<br>最喜小儿无赖<br>村头卧拨莲蓬<br>—    辛弃疾《清平乐·村居》</p>
-</blockquote>
-<p><strong>戊戌年</strong></p>
-<p><strong>丙辰月</strong></p>
-<p><strong>丙子日</strong></p>
-<p><strong>二月廿九</strong></p>
-
-      
-    </div>
-
-  </div>
-
-  <div class="article-footer">
-    <div class="article-meta pull-left">
-
-    
-
-    
-    
-
-    <span class="post-tags">
-      <i class="icon-tags"></i>
-        <a href="/tags/life/">life</a>
     </span>
     
 
