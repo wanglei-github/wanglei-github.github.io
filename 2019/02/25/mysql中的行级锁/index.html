@@ -167,7 +167,7 @@ A gap lock is a lock on a gap between index r">
 <p>InnoDB uses next-key locks for searches and index scans, which prevents phantom rows</p>
 </blockquote>
 <p>通过上面我们能理解到next-key实际是为了解决<strong><em>幻读</em></strong>问题，<br>那么实际依然是阻止了其他事务的<strong><em>insert</em></strong>操作。</p>
-<p><strong><em>大家注意，以上例子，都是在普通索引上的操作，如果你操作的列是有unique索引或者是主键索引，那么都不会有gap locks的特性，以及next-key locks</em></strong></p>
+<p><strong><em>大家注意，以上例子，都是在普通索引上的操作，如果你操作的列是有unique索引或者是主键索引并且锁定的数据是表有的，那么都不会有gap locks的特性，及退化为行锁</em></strong><br><strong><em>若执行的条件作用在唯一索引或者主键索引时，该条件实际不存在表里，那么依然会锁住该条件的左右两个区间</em></strong></p>
 <blockquote>
 <p>Gap locking is not needed for statements that lock rows using a unique index to search for a unique row. (This does not include the case that the search condition includes only some columns of a multiple-column unique index; in that case, gap locking does occur.) </p>
 </blockquote>
@@ -207,7 +207,7 @@ A gap lock is a lock on a gap between index r">
     Theme by <a href="https://github.com/CodeDaraW/Hacker" target="_blank">Hacker</a>
     </br>
     
-    &copy; 2019 wanglei
+    &copy; 2020 wanglei
     
   </p>
 </footer>
