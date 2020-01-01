@@ -83,17 +83,20 @@
       
         <figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">原文 https://www.aneasystone.com/archives/2018/04/solving-dead-locks-four.html</span><br></pre></td></tr></table></figure>
 <h3 id="摘要"><a href="#摘要" class="headerlink" title="摘要"></a>摘要</h3><ul>
-<li>要知道在范围查询时，加锁是一条记录一条记录挨个加锁的，所以虽然只有一条 SQL 语句，如果两条 SQL 语句的加锁顺序不一样，也会导致死锁。</li>
+<li><p>要知道在范围查询时，加锁是一条记录一条记录挨个加锁的，所以虽然只有一条 SQL 语句，如果两条 SQL 语句的加锁顺序不一样，也会导致死锁。</p>
+</li>
 <li><p>日志锁类型</p>
 <ol>
-<li>记录锁（LOCK_REC_NOT_GAP）: lock_mode X locks rec but not gap</li>
-<li>间隙锁（LOCK_GAP）: lock_mode X locks gap before rec</li>
-<li>Next-key 锁（LOCK_ORNIDARY）: lock_mode X</li>
-<li><p>插入意向锁（LOCK_INSERT_INTENTION）: lock_mode X locks gap before rec insert intention</p>
-<p>这里有一点要注意的是，并不是在日志里看到 lock_mode X 就认为这是 Next-key 锁，因为还有一个例外：如果在 <strong><em>supremum record</em></strong> 上加锁，<em>locks gap before rec</em> 会省略掉，间隙锁会显示成 lock_mode X，插入意向锁会显示成 <em>lock_mode X insert intention</em>。譬如下面这个</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">RECORD LOCKS space id 0 page no 307 n bits 72 index `PRIMARY` of table `test`.`test` trx id 50F lock_mode X </span><br><span class="line">Record lock, heap no 1 PHYSICAL RECORD: n_fields 1; compact format; info bits 0</span><br></pre></td></tr></table></figure></li>
+<li>记录锁（<strong>LOCK_REC_NOT_GAP</strong>）: lock_mode X locks rec but not gap</li>
+<li>间隙锁（<strong>LOCK_GAP</strong>）: lock_mode X locks gap before rec</li>
+<li>Next-key 锁（<strong>LOCK_ORNIDARY</strong>）: lock_mode X</li>
+<li>插入意向锁（<strong>LOCK_INSERT_INTENTION</strong>）: lock_mode X locks gap before rec insert intention</li>
 </ol>
 </li>
+</ul>
+<p>这里有一点要注意的是，并不是在日志里看到 lock_mode X 就认为这是 Next-key 锁，因为还有一个例外：如果在 <strong><em>supremum record</em></strong> 上加锁，<em>locks gap before rec</em> 会省略掉，间隙锁会显示成 lock_mode X，插入意向锁会显示成 <em>lock_mode X insert intention</em>。譬如下面这个<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">RECORD LOCKS space id 0 page no 307 n bits 72 index `PRIMARY` of table `test`.`test` trx id 50F lock_mode X </span><br><span class="line">Record lock, heap no 1 PHYSICAL RECORD: n_fields 1; compact format; info bits 0</span><br></pre></td></tr></table></figure></p>
+<ul>
+<li>只有访问到的对象才会加锁，这个查询本身是有覆盖索引，并不需要访问主键，因此id主键上并没有锁</li>
 </ul>
 
       
@@ -755,7 +758,7 @@
 
     <span class="post-tags">
       <i class="icon-tags"></i>
-        <a href="/tags/java/">java</a><a href="/tags/多线程/">多线程</a><a href="/tags/自旋锁/">自旋锁</a>
+        <a href="/tags/多线程/">多线程</a><a href="/tags/java/">java</a><a href="/tags/自旋锁/">自旋锁</a>
     </span>
     
 
